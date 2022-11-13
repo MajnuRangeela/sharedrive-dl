@@ -15,6 +15,8 @@ PHPCKS = ""
 
 def shareDrive(url,directLogin=True):
 
+    successMsgs = ['success', 'Success', 'SUCCESS']
+
     scrapper = requests.Session()
 
     #retrieving session PHPSESSID
@@ -31,7 +33,16 @@ def shareDrive(url,directLogin=True):
         'X-Requested-With	' : 'XMLHttpRequest'
     }
 
-    if directLogin==False:
+    if directLogin==True:
+        cookies = {
+            'PHPSESSID' : PHPSESSID
+        }
+
+        data = {
+            'id' : url.rsplit('/',1)[1],
+            'key' : 'direct'
+        }
+    else:
         cookies = {
             'PHPSESSID' : PHPSESSID,
             'PHPCKS' : PHPCKS
@@ -41,32 +52,26 @@ def shareDrive(url,directLogin=True):
             'id' : url.rsplit('/',1)[1],
             'key' : 'original'
         }
-    else:
-        cookies = {
-            'PHPSESSID' : PHPSESSID
-        }
-
-        data = {
-            'id' : url.rsplit('/',1)[1],
-            'key' : 'direct'
-        }
-
     
     resp = scrapper.post(f'https://{urlparse(url).netloc}/post', headers=headers, data=data, cookies=cookies)
+    toJson = resp.json()
 
-    if directLogin==False:
-        driveUrl = resp['redirect']
-        return driveUrl
-    else:
-        try:
-            toJson = resp.json()
+    if directLogin==True:
+        if toJson['message'] in successMsgs:
             driveUrl = toJson['redirect']
             return driveUrl
-        except:
+        else:
             if len(PHPCKS)>0:
                 shareDrive(url,directLogin=False)
             else:
-                raise Exception('Direct Login is not there and you have not provided PHPCKS cookie value!!')
+                raise Exception("Unable to retrieve link using Direct Login and You haven't provided 'PHPCKS' var")
+    else:
+        if toJson['message'] in successMsgs:
+            driveUrl = toJson['redirect']
+            return driveUrl
+        else:
+            raise Exception(toJson['message'])
+
 
                 
 gDriveURL = shareDrive(link)
